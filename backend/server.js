@@ -1,4 +1,6 @@
 import dotenv from "dotenv";
+dotenv.config(); // Ensure this is called first
+
 import express from "express";
 import http from "http";
 import mongoose from "mongoose";
@@ -8,10 +10,13 @@ import { Server as SocketIOServer } from "socket.io";
 import itemRoutes from "./routes/items.js";
 import orderRoutes from "./routes/orders.js";
 
-dotenv.config();
-
 const PORT = process.env.PORT || 4000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/bakery";
+// STRICTLY read from environment variable for Render deployment
+const MONGO_URI = process.env.MONGO_URI;
+
+// Temporary debugging to check if Render is injecting the variable correctly
+console.log("DEBUG: MONGO_URI is:", MONGO_URI);
+
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
 
 // Simple event broker so routes can emit to Socket.io without tight coupling
@@ -21,11 +26,17 @@ export const createIOEmitter = (io) => ({
 });
 
 async function start() {
+  if (!MONGO_URI) {
+    console.error("FATAL ERROR: MONGO_URI is not defined in environment variables.");
+    process.exit(1);
+  }
+
   try {
+    // Connect to MongoDB Atlas
     await mongoose.connect(MONGO_URI);
     console.log("Connected to MongoDB");
   } catch (err) {
-    console.error("MongoDB connection error", err);
+    console.error("MongoDB connection error:", err);
     process.exit(1);
   }
 
@@ -56,9 +67,8 @@ async function start() {
   });
 
   server.listen(PORT, () => {
-    console.log(`Server listening on http://localhost:${PORT}`);
+    console.log(`Server listening on port ${PORT}`);
   });
 }
 
 start();
-
