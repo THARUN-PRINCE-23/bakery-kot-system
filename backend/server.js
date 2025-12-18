@@ -30,7 +30,7 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 const DEFAULT_ADMIN = {
   username: "admin",
-  passwordHash: "$2b$10$Zl43CMFP0/TCy5VmL6Hz2O.XT7e6N36tvvBb3vtmLljFkUUkXrLO6",
+  passwordHash: "$2b$10$nnV/hEz0JU.xOnzsAJY3bOgq.y4/Iqu6VsSaAeDyPOkXrSQFZ7Uk6",
 };
 const SHOP_RADIUS_METERS = process.env.SHOP_RADIUS_METERS
   ? Number(process.env.SHOP_RADIUS_METERS)
