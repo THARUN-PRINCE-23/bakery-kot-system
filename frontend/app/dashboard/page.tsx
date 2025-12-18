@@ -6,13 +6,13 @@ import {
   deleteItem,
   fetchItems,
   fetchOrders,
-  getSocket,
   Item,
   Order,
   printOrder,
   updateItem,
   updateOrderStatus,
 } from "../../lib/api";
+import { getSocket } from "../../lib/socket";
 
 export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -48,20 +48,24 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    let s: any = null;
     loadData().catch(() => setError("Failed to load data"));
-
-    const socket = getSocket();
-    socket.on("order:list", (list: Order[]) => setOrders(list));
-    socket.on("order:update", (order: Order) => {
-      setOrders((prev) => {
-        const existing = prev.find((o) => o._id === order._id);
-        if (!existing) return [order, ...prev];
-        return prev.map((o) => (o._id === order._id ? order : o));
+    getSocket().then((socket) => {
+      s = socket;
+      socket.on("order:list", (list: Order[]) => setOrders(list));
+      socket.on("order:update", (order: Order) => {
+        setOrders((prev) => {
+          const existing = prev.find((o) => o._id === order._id);
+          if (!existing) return [order, ...prev];
+          return prev.map((o) => (o._id === order._id ? order : o));
+        });
       });
     });
     return () => {
-      socket.off("order:list");
-      socket.off("order:update");
+      if (s) {
+        s.off("order:list");
+        s.off("order:update");
+      }
     };
   }, []);
 
@@ -579,4 +583,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-

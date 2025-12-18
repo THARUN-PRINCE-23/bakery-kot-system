@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    appDir: true,
-  },
   images: {
     // Allow product images coming from local API (uploads) and seeded placeholders
     unoptimized: true, // display any remote images without domain whitelisting issues
@@ -18,4 +15,3 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-

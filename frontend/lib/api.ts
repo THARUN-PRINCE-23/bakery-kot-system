@@ -1,8 +1,4 @@
-import { io, Socket } from "socket.io-client";
-
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL;
 
 export type Item = {
   _id: string;
@@ -120,12 +116,4 @@ export async function printOrder(id: string) {
   );
   if (!res.ok) throw new Error("Failed to print order");
   return res.json();
-}
-
-let socket: Socket | null = null;
-export function getSocket(): Socket {
-  if (!socket) {
-    socket = io(SOCKET_URL);
-  }
-  return socket;
 }
