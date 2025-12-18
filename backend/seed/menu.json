@@ -1,0 +1,247 @@
+[
+  {
+    "name": "VEG PUFF",
+    "price": 17,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "EGG PUFF",
+    "price": 22,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "MUSHROOM PUFF",
+    "price": 22,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "chicken puff",
+    "price": 25,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "VEG ROLL",
+    "price": 20,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "EGG ROLL",
+    "price": 25,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "MUSHROOM ROLL",
+    "price": 30,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "chicken roll",
+    "price": 30,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "BREAD CHILLI",
+    "price": 25,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "gopi chilli",
+    "price": 40,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "mushroom chilli",
+    "price": 60,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "pav baji",
+    "price": 50,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "milagai bajji",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "valakkai bajji",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "egg bonda",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "veg samosa",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "masal bonda",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "SWEET PUFF",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "cream bun",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "jam bun",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "honey bun",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "butter bun",
+    "price": 30,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "tea bun",
+    "price": 8,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "tea",
+    "price": 12,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "coffee",
+    "price": 15,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "badam pal",
+    "price": 25,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "sukku tea",
+    "price": 12,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "milk",
+    "price": 20,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "boost",
+    "price": 20,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "horlicks",
+    "price": 20,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "apple juice",
+    "price": 60,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "orange juice",
+    "price": 60,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "madhulai juice",
+    "price": 60,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "sathukudi juice",
+    "price": 60,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  },
+  {
+    "name": "mulampalam juice",
+    "price": 60,
+    "category": "Bakery",
+    "imageUrl": "https://via.placeholder.com/150?text=Bakery",
+    "available": true
+  }
+]
