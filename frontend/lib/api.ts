@@ -47,6 +47,10 @@ export async function fetchItems(): Promise<Item[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/items`, {
     headers: { ...authHeaders() },
   });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Failed to fetch items (${res.status})`);
+  }
   return res.json();
 }
 
@@ -109,6 +113,10 @@ export async function fetchOrders(): Promise<Order[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders`, {
     headers: { ...authHeaders() },
   });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Failed to fetch orders (${res.status})`);
+  }
   return res.json();
 }
 

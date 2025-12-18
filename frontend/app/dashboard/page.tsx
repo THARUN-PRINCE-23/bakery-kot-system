@@ -169,9 +169,11 @@ export default function DashboardPage() {
     }
   };
 
-  const filteredOrders = hideBilled
-    ? orders.filter((o) => o.status !== "BILLED")
-    : orders;
+  const filteredOrders = Array.isArray(orders)
+    ? hideBilled
+      ? orders.filter((o) => o.status !== "BILLED")
+      : orders
+    : [];
 
   const tables = Array.from(
     new Set(orders.map((o) => o.tableNumber))
