@@ -157,30 +157,15 @@ async function start() {
     return R * c;
   };
 
-  app.post("/api/auth/customer-location", async (req, res) => {
-    try {
-      const { lat, lng } = req.body || {};
-      if (!JWT_SECRET) {
-        return res.status(500).json({ error: "Auth is not configured" });
-      }
-      if (!DISABLE_LOCATION_CHECK) {
-        if (typeof lat !== "number" || typeof lng !== "number") {
-          return res.status(400).json({ error: "lat and lng must be numbers" });
-        }
-        const withinAny =
-          SHOP_POINTS.findIndex((p) => haversineMeters(lat, lng, p.lat, p.lng) <= SHOP_RADIUS_METERS) >= 0;
-        if (!withinAny) return res.status(403).json({ error: "Outside shop radius" });
-      }
-      const token = jwt.sign(
-        { role: "customer" },
-        JWT_SECRET,
-        { expiresIn: "5m" }
-      );
-      res.json({ token, expiresInSeconds: 300 });
-    } catch (err) {
-      res.status(400).json({ error: err.message });
+  const issueCustomerToken = (_req, res) => {
+    if (!JWT_SECRET) {
+      return res.status(500).json({ error: "Auth is not configured" });
     }
-  });
+    const token = jwt.sign({ role: "customer" }, JWT_SECRET, { expiresIn: "5m" });
+    res.json({ token, expiresInSeconds: 300 });
+  };
+  app.post("/api/auth/customer", issueCustomerToken);
+  app.post("/api/auth/customer-location", issueCustomerToken);
 
   app.use("/api/items", itemRoutes);
   app.use("/api/orders", orderRoutes);

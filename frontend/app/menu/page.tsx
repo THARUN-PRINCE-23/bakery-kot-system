@@ -1,14 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  createOrder,
-  fetchItems,
-  fetchOrderByTable,
-  Item,
-  Order,
-  verifyCustomerLocation,
-} from "../../lib/api";
+import { createOrder, fetchItems, fetchOrderByTable, Item, Order, getCustomerToken } from "../../lib/api";
 
 type QtyMap = Record<string, number>;
 
@@ -27,60 +20,21 @@ export default function MenuPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [runningOrder, setRunningOrder] = useState<Order | null>(null);
   const [sessionTimer, setSessionTimer] = useState<NodeJS.Timeout | null>(null);
-  const disableLock =
-    String(process.env.NEXT_PUBLIC_DISABLE_LOCATION_CHECK).toLowerCase() === "true";
+  const disableLock = true;
 
   useEffect(() => {
     const init = async () => {
       try {
         if (typeof window === "undefined") return;
-        if (disableLock) {
-          const resp = await verifyCustomerLocation({ lat: 0, lng: 0 });
+        const resp = await getCustomerToken();
+        // @ts-ignore
+        (window as any).customerToken = resp.token;
+        const timer = setTimeout(() => {
           // @ts-ignore
-          (window as any).customerToken = resp.token;
-          const timer = setTimeout(() => {
-            // @ts-ignore
-            (window as any).customerToken = null;
-            window.location.href = "/session-expired";
-          }, resp.expiresInSeconds * 1000);
-          setSessionTimer(timer);
-        } else {
-          if (!navigator.geolocation) {
-            setError("Geolocation not supported");
-            setLoading(false);
-            return;
-          }
-          await new Promise<void>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(
-              async (pos) => {
-                try {
-                  const { latitude, longitude } = pos.coords;
-                  const resp = await verifyCustomerLocation({
-                    lat: latitude,
-                    lng: longitude,
-                  });
-                  // @ts-ignore
-                  (window as any).customerToken = resp.token;
-                  const timer = setTimeout(() => {
-                    // @ts-ignore
-                    (window as any).customerToken = null;
-                    window.location.href = "/session-expired";
-                  }, resp.expiresInSeconds * 1000);
-                  setSessionTimer(timer);
-                  resolve();
-                } catch (e: any) {
-                  setError(e.message || "Location verification failed");
-                  reject(e);
-                }
-              },
-              (err) => {
-                setError("Location permission required");
-                reject(err);
-              },
-              { enableHighAccuracy: true, timeout: 10000 }
-            );
-          });
-        }
+          (window as any).customerToken = null;
+          window.location.href = "/session-expired";
+        }, resp.expiresInSeconds * 1000);
+        setSessionTimer(timer);
         const itemsList = await fetchItems();
         setItems(itemsList);
         if (!Number.isNaN(tableNumber)) {

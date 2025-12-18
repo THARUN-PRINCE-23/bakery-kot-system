@@ -170,16 +170,16 @@ export async function login(payload: { username: string; password: string }) {
   return res.json() as Promise<{ token: string }>;
 }
 
-export async function verifyCustomerLocation(payload: { lat: number; lng: number }) {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/auth/customer-location`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }
-  );
-  if (!res.ok) throw new Error((await res.json()).error || "Location verify failed");
+export async function getCustomerToken() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/customer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to get customer access");
+  }
   return res.json() as Promise<{ token: string; expiresInSeconds: number }>;
 }
 

@@ -23,10 +23,14 @@ const requireRole = (roles) => (req, res, next) => {
   }
 };
 
-// List all items
-router.get("/", requireRole(["admin", "customer"]), async (_req, res) => {
-  const items = await Item.find().sort({ category: 1, name: 1 });
-  res.json(items);
+router.get("/", async (_req, res) => {
+  try {
+    const items = await Item.find().sort({ category: 1, name: 1 });
+    res.json(Array.isArray(items) ? items : []);
+  } catch (err) {
+    console.error("GET /api/items error:", err);
+    res.status(500).json({ error: "Failed to fetch items" });
+  }
 });
 
 // Create item
@@ -63,4 +67,3 @@ router.delete("/:id", requireRole(["admin"]), async (req, res) => {
 });
 
 export default router;
-

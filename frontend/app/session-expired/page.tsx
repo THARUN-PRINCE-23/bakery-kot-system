@@ -6,8 +6,7 @@ export default function SessionExpiredPage() {
       <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm text-center">
         <h1 className="text-2xl font-bold mb-2">Session expired</h1>
         <p className="text-sm text-gray-700">
-          Your access token has expired. Please re-open the QR link and allow location
-          permission to continue.
+          Your access token has expired. Please re-open the QR link to continue.
         </p>
       </div>
     </main>
