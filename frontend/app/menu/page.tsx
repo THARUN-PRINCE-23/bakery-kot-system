@@ -1,7 +1,14 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { createOrder, fetchItems, fetchOrders, Item, Order } from "../../lib/api";
+import {
+  createOrder,
+  fetchItems,
+  fetchOrderByTable,
+  Item,
+  Order,
+  verifyCustomerLocation,
+} from "../../lib/api";
 
 type QtyMap = Record<string, number>;
 
@@ -19,20 +26,65 @@ export default function MenuPage() {
   const [error, setError] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [runningOrder, setRunningOrder] = useState<Order | null>(null);
+  const [sessionTimer, setSessionTimer] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    fetchItems()
-      .then(setItems)
-      .catch(() => setError("Could not load menu"))
-      .finally(() => setLoading(false));
-    fetchOrders()
-      .then((all) => {
+    const init = async () => {
+      try {
+        if (typeof window === "undefined") return;
+        if (!navigator.geolocation) {
+          setError("Geolocation not supported");
+          setLoading(false);
+          return;
+        }
+        await new Promise<void>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+              try {
+                const { latitude, longitude } = pos.coords;
+                const resp = await verifyCustomerLocation({
+                  lat: latitude,
+                  lng: longitude,
+                });
+                // @ts-ignore
+                (window as any).customerToken = resp.token;
+                const timer = setTimeout(() => {
+                  // @ts-ignore
+                  (window as any).customerToken = null;
+                  window.location.href = "/session-expired";
+                }, resp.expiresInSeconds * 1000);
+                setSessionTimer(timer);
+                resolve();
+              } catch (e: any) {
+                setError(e.message || "Location verification failed");
+                reject(e);
+              }
+            },
+            (err) => {
+              setError("Location permission required");
+              reject(err);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+          );
+        });
+        const itemsList = await fetchItems();
+        setItems(itemsList);
         if (!Number.isNaN(tableNumber)) {
-          const open = all.find((o) => o.tableNumber === tableNumber && o.status === "OPEN");
+          const open = await fetchOrderByTable(tableNumber);
           setRunningOrder(open || null);
         }
-      })
-      .catch(() => {});
+      } catch {
+        // swallow
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+    return () => {
+      if (sessionTimer) {
+        clearTimeout(sessionTimer);
+      }
+    };
   }, [tableNumber]);
 
   const total = useMemo(() => {

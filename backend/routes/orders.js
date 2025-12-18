@@ -2,8 +2,28 @@ import express from "express";
 import Order from "../models/Order.js";
 import Item from "../models/Item.js";
 import { printBillStub, printKotStub } from "../print/escposStub.js";
+import jwt from "jsonwebtoken";
 
 const router = express.Router();
+
+const requireRole = (roles) => (req, res, next) => {
+  try {
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ error: "Missing token" });
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (!roles.includes(payload.role)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  } catch (err) {
+    const code =
+      err && (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError")
+        ? 401
+        : 400;
+    res.status(code).json({ error: "Invalid or expired token" });
+  }
+};
 
 // Utility to broadcast updates
 const emitOrders = async (ioEmitter) => {
@@ -12,7 +32,7 @@ const emitOrders = async (ioEmitter) => {
 };
 
 // Create or append to OPEN order for a table
-router.post("/", async (req, res) => {
+router.post("/", requireRole(["customer"]), async (req, res) => {
   try {
     const { tableNumber, items, note } = req.body;
     if (!tableNumber || !Array.isArray(items) || items.length === 0) {
@@ -73,13 +93,23 @@ router.post("/", async (req, res) => {
 });
 
 // List orders
-router.get("/", async (_req, res) => {
+router.get("/", requireRole(["admin"]), async (_req, res) => {
   const orders = await Order.find().sort({ createdAt: -1 });
   res.json(orders);
 });
 
+// Get running order for a table (for customers)
+router.get("/by-table/:tableNumber", requireRole(["customer"]), async (req, res) => {
+  const tableNumber = Number(req.params.tableNumber);
+  if (!Number.isFinite(tableNumber)) {
+    return res.status(400).json({ error: "Invalid table number" });
+  }
+  const order = await Order.findOne({ tableNumber, status: "OPEN" }).sort({ createdAt: -1 });
+  res.json(order || null);
+});
+
 // Update status
-router.patch("/:id/status", async (req, res) => {
+router.patch("/:id/status", requireRole(["admin"]), async (req, res) => {
   try {
     const { status } = req.body;
     const allowed = ["OPEN", "BILLED"];
@@ -103,7 +133,7 @@ router.patch("/:id/status", async (req, res) => {
 });
 
 // Print bill (stub) and mark billed
-router.post("/:id/print", async (req, res) => {
+router.post("/:id/print", requireRole(["admin"]), async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: "Order not found" });
@@ -123,7 +153,7 @@ router.post("/:id/print", async (req, res) => {
 });
 
 // Print KOT stub without changing status
-router.post("/:id/print-kot", async (req, res) => {
+router.post("/:id/print-kot", requireRole(["admin"]), async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: "Order not found" });

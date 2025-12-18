@@ -52,6 +52,13 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const t = window.localStorage.getItem("authToken");
+      if (!t) {
+        window.location.href = "/dashboard/login";
+        return;
+      }
+    }
     let s: any = null;
     loadData().catch(() => setError("Failed to load data"));
     getSocket().then((socket) => {
