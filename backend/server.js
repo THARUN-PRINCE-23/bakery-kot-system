@@ -20,11 +20,23 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
-const SHOP_LAT = process.env.SHOP_LAT ? Number(process.env.SHOP_LAT) : undefined;
-const SHOP_LNG = process.env.SHOP_LNG ? Number(process.env.SHOP_LNG) : undefined;
 const SHOP_RADIUS_METERS = process.env.SHOP_RADIUS_METERS
   ? Number(process.env.SHOP_RADIUS_METERS)
   : 100;
+let SHOP_POINTS = [];
+try {
+  if (process.env.SHOP_POINTS) {
+    const parsed = JSON.parse(process.env.SHOP_POINTS);
+    if (Array.isArray(parsed)) SHOP_POINTS = parsed;
+  }
+} catch {}
+// Fallback to the two provided points if not configured via env
+if (SHOP_POINTS.length === 0) {
+  SHOP_POINTS = [
+    { lat: 11.466774084072942, lng: 78.18909983121073 },
+    { lat: 11.486040516888176, lng: 78.18492438460116 },
+  ];
+}
 
 // Simple event broker so routes can emit to Socket.io without tight coupling
 export const createIOEmitter = (io) => ({
@@ -112,16 +124,15 @@ async function start() {
   app.post("/api/auth/customer-location", async (req, res) => {
     try {
       const { lat, lng } = req.body || {};
-      if (!JWT_SECRET || SHOP_LAT === undefined || SHOP_LNG === undefined) {
-        return res.status(500).json({ error: "Location verification not configured" });
+      if (!JWT_SECRET) {
+        return res.status(500).json({ error: "Auth is not configured" });
       }
       if (typeof lat !== "number" || typeof lng !== "number") {
         return res.status(400).json({ error: "lat and lng must be numbers" });
       }
-      const dist = haversineMeters(lat, lng, SHOP_LAT, SHOP_LNG);
-      if (dist > SHOP_RADIUS_METERS) {
-        return res.status(403).json({ error: "Outside shop radius" });
-      }
+      const withinAny =
+        SHOP_POINTS.findIndex((p) => haversineMeters(lat, lng, p.lat, p.lng) <= SHOP_RADIUS_METERS) >= 0;
+      if (!withinAny) return res.status(403).json({ error: "Outside shop radius" });
       const token = jwt.sign(
         { role: "customer" },
         JWT_SECRET,
