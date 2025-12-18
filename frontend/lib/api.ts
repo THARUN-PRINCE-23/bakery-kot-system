@@ -1,4 +1,10 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/+$/, "");
+async function parseJson(res: Response) {
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) return res.json();
+  const text = await res.text();
+  throw new Error(text && text.startsWith("<") ? "Received HTML. Check API base URL." : text || `HTTP ${res.status}`);
+}
 
 function getAuthToken(): string | null {
   try {
@@ -44,14 +50,14 @@ export type Order = {
 };
 
 export async function fetchItems(): Promise<Item[]> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/items`, {
+  const res = await fetch(`${API_BASE}/api/items`, {
     headers: { ...authHeaders() },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const body = await parseJson(res).catch(() => ({} as any));
     throw new Error(body.error || `Failed to fetch items (${res.status})`);
   }
-  return res.json();
+  return parseJson(res);
 }
 
 export async function createItem(payload: {
@@ -61,13 +67,13 @@ export async function createItem(payload: {
   imageUrl?: string;
   available?: boolean;
 }): Promise<Item> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/items`, {
+  const res = await fetch(`${API_BASE}/api/items`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Failed to create item");
-  return res.json();
+  return parseJson(res);
 }
 
 export async function updateItem(
@@ -75,7 +81,7 @@ export async function updateItem(
   payload: Partial<Omit<Item, "_id">>
 ): Promise<Item> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/items/${id}`,
+    `${API_BASE}/api/items/${id}`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -83,16 +89,16 @@ export async function updateItem(
     }
   );
   if (!res.ok) throw new Error("Failed to update item");
-  return res.json();
+  return parseJson(res);
 }
 
 export async function deleteItem(id: string) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/items/${id}`,
+    `${API_BASE}/api/items/${id}`,
     { method: "DELETE", headers: { ...authHeaders() } }
   );
   if (!res.ok) throw new Error("Failed to delete item");
-  return res.json();
+  return parseJson(res);
 }
 
 export async function createOrder(payload: {
@@ -100,24 +106,24 @@ export async function createOrder(payload: {
   items: { itemId: string; quantity: number }[];
   note?: string;
 }): Promise<Order> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders`, {
+  const res = await fetch(`${API_BASE}/api/orders`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Failed to place order");
-  return res.json();
+  return parseJson(res);
 }
 
 export async function fetchOrders(): Promise<Order[]> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/orders`, {
+  const res = await fetch(`${API_BASE}/api/orders`, {
     headers: { ...authHeaders() },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const body = await parseJson(res).catch(() => ({} as any));
     throw new Error(body.error || `Failed to fetch orders (${res.status})`);
   }
-  return res.json();
+  return parseJson(res);
 }
 
 export async function updateOrderStatus(
@@ -125,7 +131,7 @@ export async function updateOrderStatus(
   status: Order["status"]
 ): Promise<Order> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/status`,
+    `${API_BASE}/api/orders/${id}/status`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -133,61 +139,64 @@ export async function updateOrderStatus(
     }
   );
   if (!res.ok) throw new Error("Failed to update status");
-  return res.json();
+  return parseJson(res);
 }
 
 export async function printOrder(id: string) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/print`,
+    `${API_BASE}/api/orders/${id}/print`,
     {
       method: "POST",
       headers: { ...authHeaders() },
     }
   );
   if (!res.ok) throw new Error("Failed to print order");
-  return res.json();
+  return parseJson(res);
 }
 
 export async function printKot(id: string) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/print-kot`,
+    `${API_BASE}/api/orders/${id}/print-kot`,
     {
       method: "POST",
       headers: { ...authHeaders() },
     }
   );
   if (!res.ok) throw new Error("Failed to print order");
-  return res.json();
+  return parseJson(res);
 }
 
 export async function login(payload: { username: string; password: string }) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error((await res.json()).error || "Login failed");
-  return res.json() as Promise<{ token: string }>;
+  if (!res.ok) {
+    const body = await parseJson(res).catch(() => ({} as any));
+    throw new Error(body.error || "Login failed");
+  }
+  return parseJson(res) as Promise<{ token: string }>;
 }
 
 export async function getCustomerToken() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/customer`, {
+  const res = await fetch(`${API_BASE}/api/auth/customer`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const body = await parseJson(res).catch(() => ({} as any));
     throw new Error(body.error || "Failed to get customer access");
   }
-  return res.json() as Promise<{ token: string; expiresInSeconds: number }>;
+  return parseJson(res) as Promise<{ token: string; expiresInSeconds: number }>;
 }
 
 export async function fetchOrderByTable(tableNumber: number): Promise<Order | null> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/orders/by-table/${tableNumber}`,
+    `${API_BASE}/api/orders/by-table/${tableNumber}`,
     { headers: { ...authHeaders() } }
   );
   if (!res.ok) throw new Error("Failed to fetch order by table");
-  return res.json();
+  return parseJson(res);
 }
