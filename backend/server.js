@@ -14,9 +14,6 @@ const PORT = process.env.PORT || 4000;
 // STRICTLY read from environment variable for Render deployment
 const MONGO_URI = process.env.MONGO_URI;
 
-// Temporary debugging to check if Render is injecting the variable correctly
-console.log("DEBUG: MONGO_URI is:", MONGO_URI);
-
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
 
 // Simple event broker so routes can emit to Socket.io without tight coupling
