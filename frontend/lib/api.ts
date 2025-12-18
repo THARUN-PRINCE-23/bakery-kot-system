@@ -117,3 +117,14 @@ export async function printOrder(id: string) {
   if (!res.ok) throw new Error("Failed to print order");
   return res.json();
 }
+
+export async function printKot(id: string) {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/print-kot`,
+    {
+      method: "POST",
+    }
+  );
+  if (!res.ok) throw new Error("Failed to print order");
+  return res.json();
+}

@@ -26,3 +26,20 @@ export async function printBillStub(order) {
   return { printed: true, preview: receiptText };
 }
 
+export async function printKotStub(order) {
+  const lines = [];
+  lines.push("KOT");
+  lines.push(`Table: ${order.tableNumber}`);
+  lines.push(new Date().toLocaleString());
+  lines.push("-".repeat(32));
+  order.items.forEach((i) => {
+    const name = i.name.substring(0, 22).padEnd(22, " ");
+    const qty = String(i.quantity).padStart(3, " ");
+    lines.push(`${name}${qty}`);
+  });
+  lines.push("-".repeat(32));
+  const text = lines.join("\n");
+  console.log("\n--- KOT STUB START ---\n" + text + "\n--- KOT STUB END ---\n");
+  return { printed: true, preview: text };
+}
+

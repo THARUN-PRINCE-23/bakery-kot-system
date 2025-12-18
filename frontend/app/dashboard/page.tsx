@@ -9,6 +9,7 @@ import {
   Item,
   Order,
   printOrder,
+  printKot,
   updateItem,
   updateOrderStatus,
 } from "../../lib/api";
@@ -23,6 +24,9 @@ export default function DashboardPage() {
   const [salesModalOpen, setSalesModalOpen] = useState(false);
   const [inventoryModalOpen, setInventoryModalOpen] = useState(false);
   const [hideBilled, setHideBilled] = useState(true);
+  const [tableModalOpen, setTableModalOpen] = useState(false);
+  const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [showOnlyOpen, setShowOnlyOpen] = useState(true);
   const [itemForm, setItemForm] = useState<{
     _id?: string;
     name: string;
@@ -162,6 +166,22 @@ export default function DashboardPage() {
     ? orders.filter((o) => o.status !== "BILLED")
     : orders;
 
+  const tables = Array.from(
+    new Set(orders.map((o) => o.tableNumber))
+  ).sort((a, b) => a - b);
+
+  const selectedTableOrders =
+    selectedTable === null
+      ? []
+      : orders.filter((o) => o.tableNumber === selectedTable);
+
+  const selectedCurrentOrders = selectedTableOrders.filter(
+    (o) => o.status === "OPEN"
+  );
+  const selectedPreviousOrders = selectedTableOrders.filter(
+    (o) => o.status === "BILLED"
+  );
+
   const today = new Date();
   const isSameDay = (d1: Date, d2: Date) =>
     d1.getFullYear() === d2.getFullYear() &&
@@ -240,6 +260,17 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Live Orders</h2>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setSelectedTable(tables[0] ?? null);
+                  setShowOnlyOpen(true);
+                  setTableModalOpen(true);
+                }}
+                disabled={tables.length === 0}
+                className="rounded-lg border border-gray-200 px-3 py-1 text-xs sm:text-sm text-gray-800 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition disabled:opacity-50"
+              >
+                View Table Orders
+              </button>
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
@@ -325,6 +356,144 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+
+        {tableModalOpen && selectedTable !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-2xl animate-[fadeIn_0.15s_ease-out]">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-500">Table-wise Orders</p>
+                  <h3 className="text-xl font-bold">
+                    Table {selectedTable} Orders
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setTableModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {tables.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => {
+                        setSelectedTable(t);
+                        setShowOnlyOpen(true);
+                      }}
+                      className={`rounded-full px-3 py-1 text-sm border ${
+                        t === selectedTable
+                          ? "bg-emerald-600 text-white border-emerald-600"
+                          : "bg-white text-gray-800 border-gray-300"
+                      }`}
+                    >
+                      Table {t}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <button
+                    onClick={() => setShowOnlyOpen(true)}
+                    className={`rounded-full px-3 py-1 border text-xs sm:text-sm ${
+                      showOnlyOpen
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-700"
+                        : "bg-white border-gray-300 text-gray-700"
+                    }`}
+                  >
+                    Current (OPEN)
+                  </button>
+                  <button
+                    onClick={() => setShowOnlyOpen(false)}
+                    className={`rounded-full px-3 py-1 border text-xs sm:text-sm ${
+                      !showOnlyOpen
+                        ? "bg-blue-50 border-blue-500 text-blue-700"
+                        : "bg-white border-gray-300 text-gray-700"
+                    }`}
+                  >
+                    Previous (BILLED)
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-[60vh] overflow-y-auto space-y-4">
+                {(showOnlyOpen ? selectedCurrentOrders : selectedPreviousOrders).map(
+                  (order) => (
+                    <div
+                      key={order._id}
+                      className="rounded-xl border border-gray-100 bg-gray-50 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-gray-600">
+                            {new Date(order.createdAt).toLocaleString()}
+                          </p>
+                          <p className="text-lg font-semibold">
+                            ₹ {order.total.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => printKot(order._id).catch((e) =>
+                              setError(e.message || "Failed to print KOT")
+                            )}
+                            disabled={busyId === order._id}
+                            className="rounded bg-emerald-600 px-3 py-1 text-sm text-white"
+                          >
+                            Print KOT
+                          </button>
+                          <button
+                            onClick={() => act(order._id, "PRINT")}
+                            disabled={busyId === order._id || order.status === "BILLED"}
+                            className="rounded bg-indigo-600 px-3 py-1 text-sm text-white"
+                          >
+                            Print Bill
+                          </button>
+                          <button
+                            onClick={() => act(order._id, "BILLED")}
+                            disabled={busyId === order._id || order.status === "BILLED"}
+                            className="rounded bg-red-600 px-3 py-1 text-sm text-white"
+                          >
+                            Mark Billed
+                          </button>
+                        </div>
+                      </div>
+                      <ul className="mt-3 space-y-1 text-sm text-gray-800">
+                        {order.items.map((i) => (
+                          <li key={i.itemId} className="flex justify-between">
+                            <span>{i.name}</span>
+                            <span>
+                              x{i.quantity} — ₹
+                              {(i.price * i.quantity).toFixed(2)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                )}
+
+                {(showOnlyOpen ? selectedCurrentOrders : selectedPreviousOrders)
+                  .length === 0 && (
+                  <p className="text-sm text-gray-500">
+                    No {showOnlyOpen ? "current" : "previous"} orders for this table.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setTableModalOpen(false)}
+                  className="rounded border border-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {itemModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">

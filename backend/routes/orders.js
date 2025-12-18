@@ -1,7 +1,7 @@
 import express from "express";
 import Order from "../models/Order.js";
 import Item from "../models/Item.js";
-import { printBillStub } from "../print/escposStub.js";
+import { printBillStub, printKotStub } from "../print/escposStub.js";
 
 const router = express.Router();
 
@@ -112,6 +112,23 @@ router.post("/:id/print", async (req, res) => {
 
     order.status = "BILLED";
     await order.save();
+
+    req.ioEmitter.emitOrderUpdate(order);
+    await emitOrders(req.ioEmitter);
+
+    res.json({ success: true, printResult, order });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Print KOT stub without changing status
+router.post("/:id/print-kot", async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    const printResult = await printKotStub(order);
 
     req.ioEmitter.emitOrderUpdate(order);
     await emitOrders(req.ioEmitter);
