@@ -1,9 +1,7 @@
 "use client";
-
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { createOrder, fetchItems, Item } from "../../lib/api";
+import { createOrder, fetchItems, fetchOrders, Item, Order } from "../../lib/api";
 
 type QtyMap = Record<string, number>;
 
@@ -20,13 +18,22 @@ export default function MenuPage() {
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [runningOrder, setRunningOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     fetchItems()
       .then(setItems)
       .catch(() => setError("Could not load menu"))
       .finally(() => setLoading(false));
-  }, []);
+    fetchOrders()
+      .then((all) => {
+        if (!Number.isNaN(tableNumber)) {
+          const open = all.find((o) => o.tableNumber === tableNumber && o.status === "OPEN");
+          setRunningOrder(open || null);
+        }
+      })
+      .catch(() => {});
+  }, [tableNumber]);
 
   const total = useMemo(() => {
     return items.reduce(
@@ -44,13 +51,7 @@ export default function MenuPage() {
     }, {});
   }, [items]);
 
-  const imageLoader = ({ src }: { src: string }) => src;
-
-  const displayImage = (item: Item) => {
-    if (item.imageUrl && item.imageUrl.trim()) return item.imageUrl;
-    const query = encodeURIComponent(`${item.name} bakery`);
-    return `https://source.unsplash.com/300x200/?${query}`;
-  };
+  const imageSrc = (item: Item) => (item.imageUrl || "").trim();
 
   const adjustQty = (id: string, delta: number) => {
     setQty((prev) => {
@@ -141,6 +142,35 @@ export default function MenuPage() {
           </div>
         </header>
 
+        {runningOrder && (
+          <section className="mb-4 rounded-3xl bg-white/10 border border-white/10 p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-emerald-100">Running Items — Table {tableNumber}</p>
+                <p className="text-lg font-semibold text-white">
+                  ₹ {runningOrder.total.toFixed(2)}
+                </p>
+              </div>
+              <button
+                onClick={() => setCartOpen(true)}
+                className="rounded bg-emerald-600 px-3 py-2 text-sm text-white shadow"
+              >
+                Add More
+              </button>
+            </div>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {runningOrder.items.map((i) => (
+                <li key={i.itemId} className="text-sm text-gray-100 flex justify-between">
+                  <span>{i.name}</span>
+                  <span>
+                    x{i.quantity} — ₹{(i.price * i.quantity).toFixed(2)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {/* Sticky cart button at top-right while scrolling */}
         <button
           onClick={() => setCartOpen(true)}
@@ -186,7 +216,7 @@ export default function MenuPage() {
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {list.map((item) => {
-                  const img = displayImage(item);
+                  const img = imageSrc(item);
                   const itemQty = qty[item._id] || 0;
                   return (
                     <article
@@ -194,16 +224,15 @@ export default function MenuPage() {
                       className="relative rounded-3xl border border-white/10 bg-white/10 shadow-lg overflow-hidden flex flex-col transition hover:-translate-y-0.5 hover:shadow-xl backdrop-blur-lg"
                     >
                       <div className="relative h-40 w-full">
-                        <Image
-                          src={img}
-                          alt={item.name}
-                          loader={imageLoader}
-                          unoptimized
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          priority={false}
-                        />
+                        {img ? (
+                          <img
+                            src={img}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-gradient-to-br from-slate-700 to-slate-800" />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/30" />
                         {itemQty > 0 && (
                           <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-emerald-500/90 px-2 text-xs font-bold text-white shadow">
@@ -344,4 +373,3 @@ export default function MenuPage() {
     </main>
   );
 }
-

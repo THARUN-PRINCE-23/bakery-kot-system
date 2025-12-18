@@ -11,7 +11,7 @@ const emitOrders = async (ioEmitter) => {
   ioEmitter.emitOrderList(orders);
 };
 
-// Create order
+// Create or append to OPEN order for a table
 router.post("/", async (req, res) => {
   try {
     const { tableNumber, items, note } = req.body;
@@ -35,19 +35,38 @@ router.post("/", async (req, res) => {
       };
     });
 
-    const total = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-
-    const order = await Order.create({
-      tableNumber,
-      items: orderItems,
-      total,
-      status: "PREPARING",
-      note: note || "",
-    });
-
-    req.ioEmitter.emitOrderUpdate(order);
-    await emitOrders(req.ioEmitter);
-    res.status(201).json(order);
+    const existing = await Order.findOne({ tableNumber, status: "OPEN" });
+    if (existing) {
+      const merged = [...existing.items];
+      for (const ni of orderItems) {
+        const idx = merged.findIndex((m) => String(m.itemId) === String(ni.itemId));
+        if (idx >= 0) {
+          merged[idx].quantity += ni.quantity;
+        } else {
+          merged.push(ni);
+        }
+      }
+      const total = merged.reduce((sum, i) => sum + i.price * i.quantity, 0);
+      existing.items = merged;
+      existing.total = total;
+      existing.note = note || existing.note || "";
+      await existing.save();
+      req.ioEmitter.emitOrderUpdate(existing);
+      await emitOrders(req.ioEmitter);
+      return res.json(existing);
+    } else {
+      const total = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+      const order = await Order.create({
+        tableNumber,
+        items: orderItems,
+        total,
+        status: "OPEN",
+        note: note || "",
+      });
+      req.ioEmitter.emitOrderUpdate(order);
+      await emitOrders(req.ioEmitter);
+      return res.status(201).json(order);
+    }
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -63,7 +82,7 @@ router.get("/", async (_req, res) => {
 router.patch("/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
-    const allowed = ["PREPARING", "PREPARED", "BILLED"];
+    const allowed = ["OPEN", "BILLED"];
     if (!allowed.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }

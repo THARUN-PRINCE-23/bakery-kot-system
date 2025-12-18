@@ -21,7 +21,7 @@ export type Order = {
   tableNumber: number;
   items: OrderItem[];
   total: number;
-  status: "PENDING" | "PREPARING" | "PREPARED" | "BILLED";
+  status: "OPEN" | "BILLED";
   note?: string;
   createdAt: string;
 };

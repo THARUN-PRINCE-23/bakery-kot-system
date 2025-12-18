@@ -9,16 +9,19 @@ export default function Home() {
         links below or scan a table QR that points to
         /menu?table=TABLE_NUMBER.
       </p>
-      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
-        <Link
-          href="/menu?table=1"
-          className="rounded bg-emerald-600 px-4 py-3 text-white text-center shadow hover:shadow-md transition w-full"
-        >
-          Open Menu (Table 1 demo)
-        </Link>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl">
+        {[1,2,3,4,5,6,7,8].map((t) => (
+          <Link
+            key={t}
+            href={`/menu?table=${t}`}
+            className="rounded bg-emerald-600 px-4 py-3 text-white text-center shadow hover:shadow-md transition"
+          >
+            Table {t}
+          </Link>
+        ))}
         <Link
           href="/dashboard"
-          className="rounded border border-gray-300 px-4 py-3 text-gray-700 text-center shadow-sm hover:shadow transition w-full"
+          className="rounded border border-gray-300 px-4 py-3 text-gray-700 text-center shadow-sm hover:shadow transition col-span-2 sm:col-span-4"
         >
           Counter Dashboard
         </Link>
@@ -26,4 +29,3 @@ export default function Home() {
     </main>
   );
 }
-

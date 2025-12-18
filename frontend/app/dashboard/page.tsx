@@ -69,7 +69,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const act = async (id: string, action: "PREPARED" | "BILLED" | "PRINT") => {
+  const act = async (id: string, action: "BILLED" | "PRINT") => {
     setBusyId(id);
     setError(null);
     try {
@@ -298,18 +298,18 @@ export default function DashboardPage() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={() => act(order._id, "PREPARED")}
-                        disabled={busyId === order._id || order.status === "BILLED"}
-                        className="rounded border border-gray-300 px-3 py-1 text-sm"
-                      >
-                        Mark Prepared
-                      </button>
-                      <button
                         onClick={() => act(order._id, "PRINT")}
                         disabled={busyId === order._id || order.status === "BILLED"}
                         className="rounded bg-emerald-600 px-3 py-1 text-sm text-white"
                       >
                         Print Bill
+                      </button>
+                      <button
+                        onClick={() => act(order._id, "BILLED")}
+                        disabled={busyId === order._id || order.status === "BILLED"}
+                        className="rounded bg-red-600 px-3 py-1 text-sm text-white"
+                      >
+                        KOT Complete
                       </button>
                     </div>
                   </td>
