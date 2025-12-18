@@ -43,12 +43,24 @@ export default function DashboardPage() {
   });
 
   const loadData = async () => {
-    const [ordersResp, itemsResp] = await Promise.all([
-      fetchOrders(),
-      fetchItems(),
-    ]);
-    setOrders(ordersResp);
-    setItems(itemsResp);
+    try {
+      const [ordersResp, itemsResp] = await Promise.all([
+        fetchOrders(),
+        fetchItems(),
+      ]);
+      setOrders(Array.isArray(ordersResp) ? ordersResp : []);
+      setItems(Array.isArray(itemsResp) ? itemsResp : []);
+    } catch (e: any) {
+      const msg = String(e?.message || "");
+      if (msg.includes("(401)") || msg.toLowerCase().includes("unauthorized")) {
+        if (typeof window !== "undefined") {
+          window.location.href = "/dashboard/login";
+        }
+        return;
+      }
+      setError(msg || "Failed to load data");
+      setOrders([]);
+    }
   };
 
   useEffect(() => {
@@ -63,12 +75,15 @@ export default function DashboardPage() {
     loadData().catch(() => setError("Failed to load data"));
     getSocket().then((socket) => {
       s = socket;
-      socket.on("order:list", (list: Order[]) => setOrders(list));
+      socket.on("order:list", (list: Order[]) =>
+        setOrders(Array.isArray(list) ? list : [])
+      );
       socket.on("order:update", (order: Order) => {
         setOrders((prev) => {
-          const existing = prev.find((o) => o._id === order._id);
+          const base = Array.isArray(prev) ? prev : [];
+          const existing = base.find((o) => o._id === order._id);
           if (!existing) return [order, ...prev];
-          return prev.map((o) => (o._id === order._id ? order : o));
+          return base.map((o) => (o._id === order._id ? order : o));
         });
       });
     });
@@ -169,20 +184,21 @@ export default function DashboardPage() {
     }
   };
 
+  const safeOrders = Array.isArray(orders) ? orders : [];
   const filteredOrders = Array.isArray(orders)
     ? hideBilled
-      ? orders.filter((o) => o.status !== "BILLED")
-      : orders
+      ? safeOrders.filter((o) => o.status !== "BILLED")
+      : safeOrders
     : [];
 
-  const tables = Array.from(
-    new Set(orders.map((o) => o.tableNumber))
-  ).sort((a, b) => a - b);
+  const tables = Array.from(new Set(safeOrders.map((o) => o.tableNumber))).sort(
+    (a, b) => a - b
+  );
 
   const selectedTableOrders =
     selectedTable === null
       ? []
-      : orders.filter((o) => o.tableNumber === selectedTable);
+      : safeOrders.filter((o) => o.tableNumber === selectedTable);
 
   const selectedCurrentOrders = selectedTableOrders.filter(
     (o) => o.status === "OPEN"
@@ -199,7 +215,7 @@ export default function DashboardPage() {
   const isSameMonth = (d1: Date, d2: Date) =>
     d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth();
 
-  const salesDaily = orders.reduce(
+  const salesDaily = safeOrders.reduce(
     (acc, o) => {
       const d = new Date(o.createdAt);
       if (isSameDay(d, today)) {
@@ -211,7 +227,7 @@ export default function DashboardPage() {
     { amount: 0, count: 0 }
   );
 
-  const salesMonthly = orders.reduce(
+  const salesMonthly = safeOrders.reduce(
     (acc, o) => {
       const d = new Date(o.createdAt);
       if (isSameMonth(d, today)) {
