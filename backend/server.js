@@ -23,6 +23,7 @@ const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 const SHOP_RADIUS_METERS = process.env.SHOP_RADIUS_METERS
   ? Number(process.env.SHOP_RADIUS_METERS)
   : 100;
+const DISABLE_LOCATION_CHECK = String(process.env.DISABLE_LOCATION_CHECK).toLowerCase() === "true";
 let SHOP_POINTS = [];
 try {
   if (process.env.SHOP_POINTS) {
@@ -127,12 +128,14 @@ async function start() {
       if (!JWT_SECRET) {
         return res.status(500).json({ error: "Auth is not configured" });
       }
-      if (typeof lat !== "number" || typeof lng !== "number") {
-        return res.status(400).json({ error: "lat and lng must be numbers" });
+      if (!DISABLE_LOCATION_CHECK) {
+        if (typeof lat !== "number" || typeof lng !== "number") {
+          return res.status(400).json({ error: "lat and lng must be numbers" });
+        }
+        const withinAny =
+          SHOP_POINTS.findIndex((p) => haversineMeters(lat, lng, p.lat, p.lng) <= SHOP_RADIUS_METERS) >= 0;
+        if (!withinAny) return res.status(403).json({ error: "Outside shop radius" });
       }
-      const withinAny =
-        SHOP_POINTS.findIndex((p) => haversineMeters(lat, lng, p.lat, p.lng) <= SHOP_RADIUS_METERS) >= 0;
-      if (!withinAny) return res.status(403).json({ error: "Outside shop radius" });
       const token = jwt.sign(
         { role: "customer" },
         JWT_SECRET,
