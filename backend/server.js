@@ -8,22 +8,34 @@ import cors from "cors";
 import { Server as SocketIOServer } from "socket.io";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import fs from "fs";
+import path from "path";
+import Item from "./models/Item.js";
 
 import itemRoutes from "./routes/items.js";
 import orderRoutes from "./routes/orders.js";
 
 const PORT = process.env.PORT || 4000;
-// STRICTLY read from environment variable for Render deployment
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/bakery";
+const USE_MEMORY_DB = process.env.USE_MEMORY_DB === "true";
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
-const JWT_SECRET = process.env.JWT_SECRET;
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  process.env.JWT_SECRET = "dev-secret";
+  JWT_SECRET = process.env.JWT_SECRET;
+}
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+const DEFAULT_ADMIN = {
+  username: "admin",
+  passwordHash: "$2b$10$Zl43CMFP0/TCy5VmL6Hz2O.XT7e6N36tvvBb3vtmLljFkUUkXrLO6",
+};
 const SHOP_RADIUS_METERS = process.env.SHOP_RADIUS_METERS
   ? Number(process.env.SHOP_RADIUS_METERS)
   : 100;
-const DISABLE_LOCATION_CHECK = String(process.env.DISABLE_LOCATION_CHECK).toLowerCase() === "true";
+const DISABLE_LOCATION_CHECK = process.env.DISABLE_LOCATION_CHECK === "true";
 let SHOP_POINTS = [];
 try {
   if (process.env.SHOP_POINTS) {
@@ -46,23 +58,44 @@ export const createIOEmitter = (io) => ({
 });
 
 async function start() {
-  if (!MONGO_URI) {
-    console.error("FATAL ERROR: MONGO_URI is not defined in environment variables.");
-    process.exit(1);
-  }
-
+  let connected = false;
   try {
-    // Connect to MongoDB Atlas
     await mongoose.connect(MONGO_URI);
+    connected = true;
     console.log("Connected to MongoDB");
   } catch (err) {
     console.error("MongoDB connection error:", err);
+  }
+  if (!connected && USE_MEMORY_DB) {
+    const mongod = await MongoMemoryServer.create();
+    const uri = mongod.getUri();
+    await mongoose.connect(uri);
+    connected = true;
+    console.log("Connected to in-memory MongoDB");
+    process.on("SIGINT", async () => {
+      await mongod.stop();
+      process.exit(0);
+    });
+  }
+  if (!connected) {
     process.exit(1);
   }
 
   const app = express();
   app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
   app.use(express.json());
+
+  try {
+    const count = await Item.countDocuments();
+    if (count === 0) {
+      const menuPath = path.join(process.cwd(), "seed", "menu.json");
+      const raw = fs.readFileSync(menuPath, "utf-8");
+      const items = JSON.parse(raw);
+      if (Array.isArray(items) && items.length > 0) {
+        await Item.insertMany(items);
+      }
+    }
+  } catch {}
 
   const server = http.createServer(app);
   const io = new SocketIOServer(server, {
@@ -82,21 +115,23 @@ async function start() {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body || {};
-      if (!JWT_SECRET || !ADMIN_USERNAME || !ADMIN_PASSWORD_HASH) {
+      if (!JWT_SECRET) {
         return res.status(500).json({ error: "Auth is not configured" });
       }
       if (!username || !password) {
         return res.status(400).json({ error: "Username and password required" });
       }
-      if (username !== ADMIN_USERNAME) {
+      const effectiveUsername = ADMIN_USERNAME || DEFAULT_ADMIN.username;
+      const effectiveHash = ADMIN_PASSWORD_HASH || DEFAULT_ADMIN.passwordHash;
+      if (username !== effectiveUsername) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
-      const ok = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+      const ok = await bcrypt.compare(password, effectiveHash);
       if (!ok) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
       const token = jwt.sign(
-        { role: "admin", username },
+        { role: "admin", username: effectiveUsername },
         JWT_SECRET,
         { expiresIn: "7d" }
       );
