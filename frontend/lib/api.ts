@@ -2,7 +2,7 @@ const API_BASE = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
 ).replace(/\/+$/, "");
 
-// ---------- utils ----------
+// ---------------- utils ----------------
 
 async function parseJson(res: Response) {
   const ct = res.headers.get("content-type") || "";
@@ -19,10 +19,8 @@ function getAuthToken(): string | null {
   try {
     if (typeof window !== "undefined") {
       const adminToken = window.localStorage.getItem("authToken");
-      // customer token injected in window (QR flow)
-      // @ts-ignore
-      const customerToken =
-        typeof window !== "undefined" ? (window as any).customerToken : null;
+      // @ts-ignore – customer token from QR flow
+      const customerToken = (window as any).customerToken || null;
       return adminToken || customerToken || null;
     }
   } catch {}
@@ -41,7 +39,18 @@ function jsonHeaders(): HeadersInit {
   };
 }
 
-// ---------- types ----------
+// 🔥 THIS IS THE KEY FIX (token auto refresh)
+async function ensureCustomerToken() {
+  const token = getAuthToken();
+  if (token) return;
+
+  const res = await getCustomerToken();
+  if (typeof window !== "undefined") {
+    (window as any).customerToken = res.token;
+  }
+}
+
+// ---------------- types ----------------
 
 export type Item = {
   _id: string;
@@ -69,7 +78,7 @@ export type Order = {
   createdAt: string;
 };
 
-// ---------- items ----------
+// ---------------- items ----------------
 
 export async function fetchItems(): Promise<Item[]> {
   const res = await fetch(`${API_BASE}/api/items`, {
@@ -120,13 +129,15 @@ export async function deleteItem(id: string) {
   return parseJson(res);
 }
 
-// ---------- orders ----------
+// ---------------- orders ----------------
 
 export async function createOrder(payload: {
   tableNumber: number;
   items: { itemId: string; quantity: number }[];
   note?: string;
 }): Promise<Order> {
+  await ensureCustomerToken(); // 🔥 IMPORTANT
+
   const res = await fetch(`${API_BASE}/api/orders`, {
     method: "POST",
     headers: jsonHeaders(),
@@ -137,6 +148,8 @@ export async function createOrder(payload: {
 }
 
 export async function fetchOrders(): Promise<Order[]> {
+  await ensureCustomerToken(); // 🔥 IMPORTANT
+
   const res = await fetch(`${API_BASE}/api/orders`, {
     headers: authHeaders(),
   });
@@ -144,6 +157,19 @@ export async function fetchOrders(): Promise<Order[]> {
     const body = await parseJson(res).catch(() => ({} as any));
     throw new Error(body.error || `Failed to fetch orders (${res.status})`);
   }
+  return parseJson(res);
+}
+
+export async function fetchOrderByTable(
+  tableNumber: number
+): Promise<Order | null> {
+  await ensureCustomerToken(); // 🔥 IMPORTANT
+
+  const res = await fetch(
+    `${API_BASE}/api/orders/by-table/${tableNumber}`,
+    { headers: authHeaders() }
+  );
+  if (!res.ok) throw new Error("Failed to fetch order by table");
   return parseJson(res);
 }
 
@@ -160,20 +186,7 @@ export async function updateOrderStatus(
   return parseJson(res);
 }
 
-export async function fetchOrderByTable(
-  tableNumber: number
-): Promise<Order | null> {
-  const res = await fetch(
-    `${API_BASE}/api/orders/by-table/${tableNumber}`,
-    {
-      headers: authHeaders(),
-    }
-  );
-  if (!res.ok) throw new Error("Failed to fetch order by table");
-  return parseJson(res);
-}
-
-// ---------- print ----------
+// ---------------- print ----------------
 
 export async function printOrder(id: string) {
   const res = await fetch(`${API_BASE}/api/orders/${id}/print`, {
@@ -193,7 +206,7 @@ export async function printKot(id: string) {
   return parseJson(res);
 }
 
-// ---------- auth ----------
+// ---------------- auth ----------------
 
 export async function login(payload: {
   username: string;
