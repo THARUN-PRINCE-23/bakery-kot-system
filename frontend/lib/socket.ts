@@ -8,7 +8,9 @@ export async function getSocket(): Promise<Socket> {
   if (socket) return socket;
   const { io } = await import("socket.io-client");
   const url =
-    process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL;
-  socket = io(url as string);
+    process.env.NEXT_PUBLIC_SOCKET_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:4000";
+  socket = io((url as string).replace(/\/+$/, ""));
   return socket;
 }

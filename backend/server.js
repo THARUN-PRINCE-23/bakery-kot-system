@@ -12,6 +12,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import fs from "fs";
 import path from "path";
 import Item from "./models/Item.js";
+import xlsx from "xlsx";
 
 import itemRoutes from "./routes/items.js";
 import orderRoutes from "./routes/orders.js";
@@ -30,7 +31,7 @@ const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 const DEFAULT_ADMIN = {
   username: "admin",
-  passwordHash: "$2b$10$nnV/hEz0JU.xOnzsAJY3bOgq.y4/Iqu6VsSaAeDyPOkXrSQFZ7Uk6",
+  passwordHash: "$2b$10$t6RtbLPRr/XxbOw1KM5paONlySPRZUIYKGKvRxe2.VoApCLEhfvVm",
 };
 const SHOP_RADIUS_METERS = process.env.SHOP_RADIUS_METERS
   ? Number(process.env.SHOP_RADIUS_METERS)
@@ -86,13 +87,78 @@ async function start() {
   app.use(express.json());
 
   try {
-    const count = await Item.countDocuments();
-    if (count === 0) {
+    let itemsSrc = [];
+    const excelPath = path.join(process.cwd(), "..", "sancks product list.xlsx");
+    if (fs.existsSync(excelPath)) {
+      const wb = xlsx.readFile(excelPath);
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+      let currentCategory = "Bakery";
+      rows.forEach((row) => {
+        const rawName =
+          row.Name ||
+          row.Item ||
+          row.ItemName ||
+          row["Item Name"] ||
+          row["item names"] ||
+          row["item"];
+        const rawPrice =
+          row.Price ||
+          row.Rate ||
+          row["MRP"] ||
+          row["sellling price"] ||
+          row["selling price"];
+        if (rawName && rawPrice === "") {
+          currentCategory = String(rawName).trim() || currentCategory;
+          return;
+        }
+        const priceStr = String(rawPrice).trim();
+        const priceClean = priceStr.replace(/[^0-9.]/g, "");
+        const price = priceClean ? Number(priceClean) : NaN;
+        if (!rawName || Number.isNaN(price)) return;
+        const rawImage =
+          row.ImageUrl ||
+          row.ImageURL ||
+          row["Image URL"] ||
+          row["image url"] ||
+          row.Image ||
+          row["image"] ||
+          row["Image Link"] ||
+          row["image link"] ||
+          row.img ||
+          row.URL ||
+          row.url;
+        itemsSrc.push({
+          name: String(rawName),
+          price,
+          category: currentCategory,
+          imageUrl: (rawImage ? String(rawImage).trim() : ""),
+          available: true,
+        });
+      });
+    } else {
       const menuPath = path.join(process.cwd(), "seed", "menu.json");
       const raw = fs.readFileSync(menuPath, "utf-8");
-      const items = JSON.parse(raw);
-      if (Array.isArray(items) && items.length > 0) {
-        await Item.insertMany(items);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) itemsSrc = parsed;
+    }
+    if (Array.isArray(itemsSrc) && itemsSrc.length > 0) {
+      const ops = itemsSrc.map((it) => ({
+        updateOne: {
+          filter: { name: it.name },
+          update: {
+            $set: {
+              price: it.price,
+              category: it.category,
+              imageUrl: it.imageUrl || "",
+              available: it.available,
+            },
+          },
+          upsert: true,
+        },
+      }));
+      if (ops.length > 0) {
+        await Item.bulkWrite(ops);
       }
     }
   } catch {}

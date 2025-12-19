@@ -1,4 +1,4 @@
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/+$/, "");
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
 async function parseJson(res: Response) {
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) return res.json();
