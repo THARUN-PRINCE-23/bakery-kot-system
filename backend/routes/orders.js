@@ -25,6 +25,36 @@ const requireRole = (roles) => (req, res, next) => {
   }
 };
 
+const customerSessionOrRefresh = (tableResolver) => async (req, res, next) => {
+  try {
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+    let ok = false;
+    if (token) {
+      try {
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        ok = payload && payload.role === "customer";
+      } catch {}
+    }
+    const t = Number(tableResolver(req));
+    const validTable = Number.isFinite(t) && t > 0;
+    if (!ok && validTable) {
+      const newToken = jwt.sign({ role: "customer" }, process.env.JWT_SECRET, {
+        expiresIn: "5m",
+      });
+      res.setHeader("x-new-token", newToken);
+      req.headers.authorization = `Bearer ${newToken}`;
+      ok = true;
+    }
+    if (!ok) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+    next();
+  } catch {
+    res.status(400).json({ error: "Invalid or expired token" });
+  }
+};
+
 // Utility to broadcast updates
 const emitOrders = async (ioEmitter) => {
   const orders = await Order.find().sort({ createdAt: -1 });
@@ -32,7 +62,7 @@ const emitOrders = async (ioEmitter) => {
 };
 
 // Create or append to OPEN order for a table
-router.post("/", requireRole(["customer"]), async (req, res) => {
+router.post("/", customerSessionOrRefresh((req) => req.body?.tableNumber), async (req, res) => {
   try {
     const { tableNumber, items, note } = req.body;
     if (!tableNumber || !Array.isArray(items) || items.length === 0) {
@@ -99,14 +129,18 @@ router.get("/", requireRole(["admin"]), async (_req, res) => {
 });
 
 // Get running order for a table (for customers)
-router.get("/by-table/:tableNumber", requireRole(["customer"]), async (req, res) => {
+router.get(
+  "/by-table/:tableNumber",
+  customerSessionOrRefresh((req) => req.params?.tableNumber),
+  async (req, res) => {
   const tableNumber = Number(req.params.tableNumber);
   if (!Number.isFinite(tableNumber)) {
     return res.status(400).json({ error: "Invalid table number" });
   }
   const order = await Order.findOne({ tableNumber, status: "OPEN" }).sort({ createdAt: -1 });
   res.json(order || null);
-});
+}
+);
 
 // Update status
 router.patch("/:id/status", requireRole(["admin"]), async (req, res) => {

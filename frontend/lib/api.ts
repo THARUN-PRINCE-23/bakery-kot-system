@@ -15,6 +15,17 @@ async function parseJson(res: Response) {
   );
 }
 
+function persistRefreshedToken(res: Response) {
+  try {
+    if (typeof window !== "undefined") {
+      const t = res.headers.get("x-new-token");
+      if (t) {
+        // @ts-ignore
+        (window as any).customerToken = t;
+      }
+    }
+  } catch {}
+}
 function getAuthToken(): string | null {
   try {
     if (typeof window !== "undefined") {
@@ -84,6 +95,7 @@ export async function fetchItems(): Promise<Item[]> {
   const res = await fetch(`${API_BASE}/api/items`, {
     headers: authHeaders(),
   });
+  persistRefreshedToken(res);
   if (!res.ok) {
     const body = await parseJson(res).catch(() => ({} as any));
     throw new Error(body.error || `Failed to fetch items (${res.status})`);
@@ -143,6 +155,7 @@ export async function createOrder(payload: {
     headers: jsonHeaders(),
     body: JSON.stringify(payload),
   });
+  persistRefreshedToken(res);
   if (!res.ok) throw new Error("Failed to place order");
   return parseJson(res);
 }
@@ -153,6 +166,7 @@ export async function fetchOrders(): Promise<Order[]> {
   const res = await fetch(`${API_BASE}/api/orders`, {
     headers: authHeaders(),
   });
+  persistRefreshedToken(res);
   if (!res.ok) {
     const body = await parseJson(res).catch(() => ({} as any));
     throw new Error(body.error || `Failed to fetch orders (${res.status})`);
@@ -169,6 +183,7 @@ export async function fetchOrderByTable(
     `${API_BASE}/api/orders/by-table/${tableNumber}`,
     { headers: authHeaders() }
   );
+  persistRefreshedToken(res);
   if (!res.ok) throw new Error("Failed to fetch order by table");
   return parseJson(res);
 }
