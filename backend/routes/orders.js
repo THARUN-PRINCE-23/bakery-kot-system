@@ -113,6 +113,11 @@ router.post("/", customerSessionOrRefresh((req) => req.body?.tableNumber), async
         status: "OPEN",
         note: note || "",
       });
+      // Print KOT
+      printKotStub(order).catch((err) =>
+        console.error("KOT print failed:", err)
+      );
+
       req.ioEmitter.emitOrderUpdate(order);
       await emitOrders(req.ioEmitter);
       return res.status(201).json(order);
@@ -192,7 +197,7 @@ router.post("/:id/print-kot", requireRole(["admin"]), async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    const printResult = await printKotStub(order);
+    const printResult = await printKot(order);
 
     req.ioEmitter.emitOrderUpdate(order);
     await emitOrders(req.ioEmitter);

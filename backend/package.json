@@ -18,7 +18,10 @@
     "mongodb-memory-server": "^10.1.4",
     "mongoose": "^7.6.3",
     "socket.io": "^4.7.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "escpos": "^3.0.0-alpha.6",
+    "escpos-usb": "^3.0.0-alpha.4",
+    "escpos-network": "^3.0.0-alpha.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
