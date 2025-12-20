@@ -28,3 +28,4 @@ yarn-error.log*
 
 # Binaries
 *.exe
+!backend/print/RawPrinterHelper.exe
