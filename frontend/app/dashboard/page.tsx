@@ -21,6 +21,11 @@ export default function DashboardPage() {
   const [notif, setNotif] = useState<{ table: number; count: number } | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioCtxRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const soundUrl =
+    (typeof process !== "undefined" &&
+      (process.env.NEXT_PUBLIC_NOTIFICATION_SOUND_URL as string)) ||
+    "/order.mp3";
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -105,6 +110,17 @@ export default function DashboardPage() {
 
   const enableSound = async () => {
     try {
+      if (typeof window !== "undefined") {
+        try {
+          audioRef.current = new Audio(soundUrl);
+          audioRef.current.volume = 1.0;
+          await audioRef.current.play().catch(() => {});
+          try {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+          } catch {}
+        } catch {}
+      }
       const Ctx: any =
         typeof window !== "undefined"
           ? (window as any).AudioContext || (window as any).webkitAudioContext
@@ -121,6 +137,13 @@ export default function DashboardPage() {
 
   const playBeep = () => {
     try {
+      if (audioRef.current && soundEnabled) {
+        try {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => {});
+          return;
+        } catch {}
+      }
       const Ctx: any =
         typeof window !== "undefined"
           ? (window as any).AudioContext || (window as any).webkitAudioContext
