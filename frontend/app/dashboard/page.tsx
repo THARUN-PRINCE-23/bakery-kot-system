@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   createItem,
   deleteItem,
@@ -19,6 +19,8 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [notif, setNotif] = useState<{ table: number; count: number } | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const audioCtxRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -84,31 +86,7 @@ export default function DashboardPage() {
           const base = Array.isArray(prev) ? prev : [];
           const existing = base.find((o) => o._id === order._id);
           if (!existing) {
-            try {
-              const Ctx: any =
-                typeof window !== "undefined"
-                  ? (window as any).AudioContext || (window as any).webkitAudioContext
-                  : null;
-              if (Ctx) {
-                const ctx = new Ctx();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "sine";
-                osc.frequency.value = 880;
-                gain.gain.value = 0.1;
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start();
-                setTimeout(() => {
-                  try {
-                    osc.stop();
-                  } catch {}
-                  try {
-                    ctx.close();
-                  } catch {}
-                }, 300);
-              }
-            } catch {}
+            playBeep();
             setNotif({ table: order.tableNumber, count: order.items.length });
             setTimeout(() => setNotif(null), 5000);
             return [order, ...prev];
@@ -124,6 +102,69 @@ export default function DashboardPage() {
       }
     };
   }, []);
+
+  const enableSound = async () => {
+    try {
+      const Ctx: any =
+        typeof window !== "undefined"
+          ? (window as any).AudioContext || (window as any).webkitAudioContext
+          : null;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      if (ctx.state === "suspended" && ctx.resume) {
+        await ctx.resume();
+      }
+      audioCtxRef.current = ctx;
+      setSoundEnabled(true);
+    } catch {}
+  };
+
+  const playBeep = () => {
+    try {
+      const Ctx: any =
+        typeof window !== "undefined"
+          ? (window as any).AudioContext || (window as any).webkitAudioContext
+          : null;
+      if (!Ctx) return;
+      const ctx = audioCtxRef.current || new Ctx();
+      if (ctx.state === "suspended" && ctx.resume) {
+        // If context is suspended (autoplay policy), bail unless user enabled
+        if (!soundEnabled) return;
+        ctx.resume().catch(() => {});
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.value = 880;
+      gain.gain.value = 0.2;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      setTimeout(() => {
+        try {
+          osc.stop();
+        } catch {}
+      }, 400);
+      // short double beep
+      setTimeout(() => {
+        try {
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = "square";
+          osc2.frequency.value = 660;
+          gain2.gain.value = 0.2;
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start();
+          setTimeout(() => {
+            try {
+              osc2.stop();
+            } catch {}
+          }, 300);
+        } catch {}
+      }, 150);
+    } catch {}
+  };
 
   const act = async (id: string, action: "BILLED" | "PRINT") => {
     setBusyId(id);
@@ -293,6 +334,13 @@ export default function DashboardPage() {
             <p className="text-gray-600 text-sm">Live orders and menu control</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={enableSound}
+              className={`rounded-lg ${soundEnabled ? "bg-emerald-100 text-emerald-700" : "bg-emerald-600 text-white"} px-4 py-2 shadow hover:-translate-y-0.5 hover:shadow-md transition`}
+              title={soundEnabled ? "Sound enabled" : "Enable sound for notifications"}
+            >
+              {soundEnabled ? "Sound Enabled" : "Enable Sound"}
+            </button>
             <button
               onClick={() => {
                 resetForm();
