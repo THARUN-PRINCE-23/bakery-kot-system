@@ -1,7 +1,7 @@
 import express from "express";
 import Order from "../models/Order.js";
 import Item from "../models/Item.js";
-import { printBillStub, printKotStub } from "../print/escposStub.js";
+import { printBill, printKot } from "../print/printer.js";
 import jwt from "jsonwebtoken";
 
 const router = express.Router();
@@ -114,7 +114,7 @@ router.post("/", customerSessionOrRefresh((req) => req.body?.tableNumber), async
         note: note || "",
       });
       // Print KOT
-      printKotStub(order).catch((err) =>
+      printKot(order).catch((err) =>
         console.error("KOT print failed:", err)
       );
 
@@ -177,7 +177,7 @@ router.post("/:id/print", requireRole(["admin"]), async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    const printResult = await printBillStub(order);
+    const printResult = await printBill(order);
 
     order.status = "BILLED";
     await order.save();
