@@ -18,6 +18,7 @@ import { getSocket } from "../../lib/socket";
 export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [notif, setNotif] = useState<{ table: number; count: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -82,7 +83,36 @@ export default function DashboardPage() {
         setOrders((prev) => {
           const base = Array.isArray(prev) ? prev : [];
           const existing = base.find((o) => o._id === order._id);
-          if (!existing) return [order, ...prev];
+          if (!existing) {
+            try {
+              const Ctx: any =
+                typeof window !== "undefined"
+                  ? (window as any).AudioContext || (window as any).webkitAudioContext
+                  : null;
+              if (Ctx) {
+                const ctx = new Ctx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.value = 880;
+                gain.gain.value = 0.1;
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                setTimeout(() => {
+                  try {
+                    osc.stop();
+                  } catch {}
+                  try {
+                    ctx.close();
+                  } catch {}
+                }, 300);
+              }
+            } catch {}
+            setNotif({ table: order.tableNumber, count: order.items.length });
+            setTimeout(() => setNotif(null), 5000);
+            return [order, ...prev];
+          }
           return base.map((o) => (o._id === order._id ? order : o));
         });
       });
@@ -241,6 +271,18 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-white p-4 sm:p-6">
+      {notif && (
+        <div className="fixed top-4 right-4 z-50 rounded-lg bg-emerald-600 text-white px-4 py-3 shadow-lg">
+          <p className="font-semibold">New Order</p>
+          <p className="text-sm">Table {notif.table} • {notif.count} item(s)</p>
+          <button
+            onClick={() => setNotif(null)}
+            className="mt-2 rounded bg-white/20 px-2 py-1 text-xs hover:bg-white/30"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="mx-auto max-w-6xl">
         <header className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div>
