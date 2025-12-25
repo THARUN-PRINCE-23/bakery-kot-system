@@ -96,6 +96,19 @@ export default function DashboardPage() {
             setTimeout(() => setNotif(null), 5000);
             return [order, ...prev];
           }
+          try {
+            const prevQty = Array.isArray(existing.items)
+              ? existing.items.reduce((sum, i) => sum + (i.quantity || 0), 0)
+              : 0;
+            const newQty = Array.isArray(order.items)
+              ? order.items.reduce((sum, i) => sum + (i.quantity || 0), 0)
+              : 0;
+            if (newQty > prevQty) {
+              playBeep();
+              setNotif({ table: order.tableNumber, count: order.items.length });
+              setTimeout(() => setNotif(null), 5000);
+            }
+          } catch {}
           return base.map((o) => (o._id === order._id ? order : o));
         });
       });
