@@ -208,5 +208,59 @@ router.post("/:id/print-kot", requireRole(["admin"]), async (req, res) => {
   }
 });
 
+router.patch("/:id", requireRole(["admin"]), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { tableNumber, note, items } = req.body || {};
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (tableNumber !== undefined) {
+      const t = Number(tableNumber);
+      if (!Number.isFinite(t) || t <= 0) return res.status(400).json({ error: "Invalid table number" });
+      order.tableNumber = t;
+    }
+    if (typeof note === "string") {
+      order.note = note;
+    }
+    if (Array.isArray(items)) {
+      const itemIds = items.map((i) => i.itemId);
+      const dbItems = await Item.find({ _id: { $in: itemIds }, available: true });
+      const dbMap = Object.fromEntries(dbItems.map((i) => [String(i.id), i]));
+      const normalized = items.map((i) => {
+        const key = String(i.itemId);
+        const base = dbMap[key];
+        const name = i.name || (base ? base.name : "");
+        const price = i.price !== undefined ? Number(i.price) : base ? base.price : NaN;
+        const quantity = Number(i.quantity || 0);
+        if (!base && (!name || Number.isNaN(price))) throw new Error(`Item not available: ${i.itemId}`);
+        return { itemId: key, name, price, quantity };
+      }).filter((i) => i.quantity > 0);
+      const total = normalized.reduce((sum, it) => sum + it.price * it.quantity, 0);
+      order.items = normalized;
+      order.total = total;
+    }
+    await order.save();
+    req.ioEmitter.emitOrderUpdate(order);
+    await emitOrders(req.ioEmitter);
+    res.json(order);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/:id", requireRole(["admin"]), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = await Order.findById(id);
+    if (!existing) return res.status(404).json({ error: "Order not found" });
+    await Order.deleteOne({ _id: id });
+    req.ioEmitter.emitOrderUpdate({ ...existing.toObject(), _id: id, deleted: true });
+    await emitOrders(req.ioEmitter);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 export default router;
 

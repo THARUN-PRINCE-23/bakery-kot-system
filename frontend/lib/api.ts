@@ -221,6 +221,35 @@ export async function printKot(id: string) {
   return parseJson(res);
 }
 
+export async function updateOrder(id: string, payload: Partial<{
+  tableNumber: number;
+  note: string;
+  items: { itemId: string; name?: string; price?: number; quantity: number }[];
+}>): Promise<Order> {
+  const res = await fetch(`${API_BASE}/api/orders/${id}`, {
+    method: "PATCH",
+    headers: jsonHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await parseJson(res).catch(() => ({} as any));
+    throw new Error(body.error || "Failed to update order");
+  }
+  return parseJson(res);
+}
+
+export async function deleteOrder(id: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/api/orders/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const body = await parseJson(res).catch(() => ({} as any));
+    throw new Error(body.error || "Failed to delete order");
+  }
+  return parseJson(res);
+}
+
 // ---------------- auth ----------------
 
 export async function login(payload: {

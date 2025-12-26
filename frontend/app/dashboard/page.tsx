@@ -12,6 +12,8 @@ import {
   printKot,
   updateItem,
   updateOrderStatus,
+  updateOrder,
+  deleteOrder,
 } from "../../lib/api";
 import { getSocket } from "../../lib/socket";
 
@@ -35,6 +37,8 @@ export default function DashboardPage() {
   const [tableModalOpen, setTableModalOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [showOnlyOpen, setShowOnlyOpen] = useState(true);
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [itemForm, setItemForm] = useState<{
     _id?: string;
     name: string;
@@ -480,6 +484,15 @@ export default function DashboardPage() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       <button
+                        onClick={() => {
+                          setEditOrder(order);
+                          setOrderModalOpen(true);
+                        }}
+                        className="rounded border border-gray-200 px-3 py-1 text-sm text-gray-800"
+                      >
+                        Edit
+                      </button>
+                      <button
                         onClick={() => act(order._id, "PRINT")}
                         disabled={busyId === order._id || order.status === "BILLED"}
                         className="rounded bg-emerald-600 px-3 py-1 text-sm text-white"
@@ -640,6 +653,174 @@ export default function DashboardPage() {
                   className="rounded border border-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-50"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {orderModalOpen && editOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+            <div className="w-full max-w-3xl rounded-2xl bg-white shadow-lg">
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <h3 className="text-lg font-semibold">Edit Order</h3>
+                <button
+                  onClick={() => setOrderModalOpen(false)}
+                  className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="text-sm text-gray-700">
+                    Table
+                    <input
+                      type="number"
+                      value={editOrder.tableNumber}
+                      onChange={(e) =>
+                        setEditOrder({ ...editOrder, tableNumber: Number(e.target.value) })
+                      }
+                      className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-sm text-gray-700">
+                    Note
+                    <input
+                      type="text"
+                      value={editOrder.note || ""}
+                      onChange={(e) =>
+                        setEditOrder({ ...editOrder, note: e.target.value })
+                      }
+                      className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 mb-2">Items</p>
+                  <ul className="space-y-2">
+                    {editOrder.items.map((it, idx) => (
+                      <li key={`${it.itemId}-${idx}`} className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-gray-800">{it.name}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              const next = editOrder.items.map((x) =>
+                                x.itemId === it.itemId
+                                  ? { ...x, quantity: Math.max(0, x.quantity - 1) }
+                                  : x
+                              );
+                              const filtered = next.filter((x) => x.quantity > 0 || x.itemId !== it.itemId);
+                              setEditOrder({ ...editOrder, items: filtered });
+                            }}
+                            className="rounded bg-gray-100 px-2 py-1 text-xs"
+                          >
+                            -
+                          </button>
+                          <span className="text-sm w-6 text-center">{it.quantity}</span>
+                          <button
+                            onClick={() => {
+                              const next = editOrder.items.map((x) =>
+                                x.itemId === it.itemId ? { ...x, quantity: x.quantity + 1 } : x
+                              );
+                              setEditOrder({ ...editOrder, items: next });
+                            }}
+                            className="rounded bg-gray-100 px-2 py-1 text-xs"
+                          >
+                            +
+                          </button>
+                          <button
+                            onClick={() => {
+                              const next = editOrder.items.filter((x) => x.itemId !== it.itemId);
+                              setEditOrder({ ...editOrder, items: next });
+                            }}
+                            className="rounded bg-red-100 px-2 py-1 text-xs text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-3 flex items-center gap-2">
+                    <select
+                      onChange={(e) => {
+                        const item = items.find((i) => i._id === e.target.value);
+                        if (!item) return;
+                        const existing = editOrder.items.find((x) => x.itemId === item._id);
+                        const nextItems = existing
+                          ? editOrder.items.map((x) =>
+                              x.itemId === item._id ? { ...x, quantity: x.quantity + 1 } : x
+                            )
+                          : [
+                              ...editOrder.items,
+                              { itemId: item._id, name: item.name, price: item.price, quantity: 1 },
+                            ];
+                        setEditOrder({ ...editOrder, items: nextItems });
+                        (e.target as HTMLSelectElement).selectedIndex = 0;
+                      }}
+                      className="rounded border px-2 py-2 text-sm"
+                    >
+                      <option value="">Add item…</option>
+                      {items.map((i) => (
+                        <option key={i._id} value={i._id}>
+                          {i.name} — ₹{i.price.toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between border-t px-4 py-3">
+                <button
+                  onClick={async () => {
+                    if (!editOrder) return;
+                    setBusyId(editOrder._id);
+                    setError(null);
+                    try {
+                      const payload = {
+                        tableNumber: editOrder.tableNumber,
+                        note: editOrder.note || "",
+                        items: editOrder.items.map((x) => ({
+                          itemId: x.itemId,
+                          name: x.name,
+                          price: x.price,
+                          quantity: x.quantity,
+                        })),
+                      };
+                      await updateOrder(editOrder._id, payload);
+                      const latest = await fetchOrders();
+                      setOrders(latest);
+                      setOrderModalOpen(false);
+                    } catch (e: any) {
+                      setError(e.message || "Failed to save order");
+                    } finally {
+                      setBusyId(null);
+                    }
+                  }}
+                  className="rounded bg-emerald-600 px-4 py-2 text-white"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!editOrder) return;
+                    setBusyId(editOrder._id);
+                    setError(null);
+                    try {
+                      await deleteOrder(editOrder._id);
+                      const latest = await fetchOrders();
+                      setOrders(latest);
+                      setOrderModalOpen(false);
+                    } catch (e: any) {
+                      setError(e.message || "Failed to delete order");
+                    } finally {
+                      setBusyId(null);
+                    }
+                  }}
+                  className="rounded bg-red-600 px-4 py-2 text-white"
+                >
+                  Delete
                 </button>
               </div>
             </div>
