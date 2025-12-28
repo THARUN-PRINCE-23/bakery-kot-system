@@ -22,6 +22,8 @@ export default function DashboardPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [notif, setNotif] = useState<{ table: number; count: number } | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
   const audioCtxRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const soundUrl =
@@ -130,7 +132,7 @@ export default function DashboardPage() {
       if (typeof window !== "undefined") {
         try {
           audioRef.current = new Audio(soundUrl);
-          audioRef.current.volume = 1.0;
+          audioRef.current.volume = muted ? 0 : volume;
           await audioRef.current.play().catch(() => {});
           try {
             audioRef.current.pause();
@@ -154,8 +156,9 @@ export default function DashboardPage() {
 
   const playBeep = () => {
     try {
-      if (audioRef.current && soundEnabled) {
+      if (audioRef.current && soundEnabled && !muted) {
         try {
+          audioRef.current.volume = muted ? 0 : volume;
           audioRef.current.currentTime = 0;
           audioRef.current.play().catch(() => {});
           return;
@@ -169,14 +172,15 @@ export default function DashboardPage() {
       const ctx = audioCtxRef.current || new Ctx();
       if (ctx.state === "suspended" && ctx.resume) {
         // If context is suspended (autoplay policy), bail unless user enabled
-        if (!soundEnabled) return;
+        if (!soundEnabled || muted) return;
         ctx.resume().catch(() => {});
       }
+      if (muted) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "square";
       osc.frequency.value = 880;
-      gain.gain.value = 0.2;
+      gain.gain.value = 0.2 * Math.max(0, Math.min(1, volume));
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
@@ -192,7 +196,7 @@ export default function DashboardPage() {
           const gain2 = ctx.createGain();
           osc2.type = "square";
           osc2.frequency.value = 660;
-          gain2.gain.value = 0.2;
+          gain2.gain.value = 0.2 * Math.max(0, Math.min(1, volume));
           osc2.connect(gain2);
           gain2.connect(ctx.destination);
           osc2.start();
@@ -203,6 +207,58 @@ export default function DashboardPage() {
           }, 300);
         } catch {}
       }, 150);
+    } catch {}
+  };
+ 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const v = window.localStorage.getItem("dashboardSoundVolume");
+      const m = window.localStorage.getItem("dashboardSoundMuted");
+      if (v !== null) {
+        const num = Number(v);
+        if (!Number.isNaN(num)) setVolume(Math.max(0, Math.min(1, num)));
+      }
+      if (m !== null) setMuted(m === "1");
+    } catch {}
+  }, []);
+ 
+  const handleVolumeChange = (val: number) => {
+    const clamped = Math.max(0, Math.min(1, val));
+    setVolume(clamped);
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("dashboardSoundVolume", String(clamped));
+      }
+    } catch {}
+    try {
+      if (audioRef.current) {
+        audioRef.current.volume = muted ? 0 : clamped;
+      }
+    } catch {}
+  };
+ 
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("dashboardSoundMuted", next ? "1" : "0");
+      }
+    } catch {}
+    try {
+      if (audioRef.current) {
+        audioRef.current.volume = next ? 0 : volume;
+      }
+    } catch {}
+  };
+ 
+  const testSound = async () => {
+    try {
+      if (!soundEnabled) {
+        await enableSound();
+      }
+      playBeep();
     } catch {}
   };
 
@@ -381,6 +437,31 @@ export default function DashboardPage() {
             >
               {soundEnabled ? "Sound Enabled" : "Enable Sound"}
             </button>
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
+              <span className="text-xs font-semibold text-gray-700">Sound</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(volume * 100)}
+                onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
+                className="h-2 w-24 accent-emerald-600"
+              />
+              <button
+                onClick={toggleMute}
+                className={`rounded px-2 py-1 text-xs ${muted ? "bg-gray-200 text-gray-700" : "bg-emerald-600 text-white"}`}
+                title={muted ? "Unmute" : "Mute"}
+              >
+                {muted ? "Muted" : "Mute"}
+              </button>
+              <button
+                onClick={testSound}
+                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-800"
+                title="Test notification sound"
+              >
+                Test
+              </button>
+            </div>
             <button
               onClick={() => {
                 resetForm();
