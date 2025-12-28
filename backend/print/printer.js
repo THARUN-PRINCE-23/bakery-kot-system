@@ -3,6 +3,8 @@ import escposUsb from "escpos-usb";
 import fs from "fs";
 import path from "path";
 import { execFile } from "child_process";
+import { fileURLToPath } from "url";
+import os from "os";
 
 // Set the adapter
 escpos.USB = escposUsb;
@@ -31,31 +33,23 @@ class WindowsPrinterAdapter {
   }
 
   close(callback, options) {
-    // Write buffer to temp file and print
-    const tempFile = path.join(process.cwd(), `temp_print_${Date.now()}.bin`);
-    
-    // We must invoke the callback after a slight delay to mimic async behavior,
-    // or sometimes the escpos library calls close() too early?
-    // Actually, escpos library expects close to be called by user or by itself.
+    const tempFile = path.join(os.tmpdir(), `temp_print_${Date.now()}.bin`);
     
     fs.writeFile(tempFile, this.buffer, (err) => {
       if (err) {
         console.error("Failed to write temp print file:", err);
-        // Clean up memory
         this.buffer = Buffer.alloc(0);
         if (callback) callback(err);
         return;
       }
 
-      const helperPath = path.join(process.cwd(), "print", "RawPrinterHelper.exe");
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      const helperPath = path.join(__dirname, "RawPrinterHelper.exe");
       
       console.log(`Sending job to printer '${this.printerName}' via ${helperPath}`);
 
-      // Execute the helper
       execFile(helperPath, [this.printerName, tempFile], (execErr, stdout, stderr) => {
-        // Cleanup temp file
         fs.unlink(tempFile, () => {});
-        // Clean up memory
         this.buffer = Buffer.alloc(0);
 
         if (execErr) {
